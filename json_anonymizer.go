@@ -107,41 +107,6 @@ func (ja JsonAnonymizer) ShouldSkip(key string) bool {
 	return false
 }
 
-//func (ja JsonAnonymizer) AnonymizeMap(input map[string]interface{}) (err error) {
-//
-//	for key, val := range input {
-//
-//		switch v := val.(type) {
-//		case map[string]interface{}:
-//			delete(input, key)
-//			// recursively anonymize map
-//			if errAnonymizeMap := ja.AnonymizeMap(v); errAnonymizeMap != nil {
-//				return errAnonymizeMap
-//			}
-//			input[anonymizeString(key)] = v
-//		case []interface{}:
-//			// return fmt.Errorf("Cannot handle slice/list values")
-//			for index, listItem := range v {
-//
-//			}
-//		case float64:
-//			delete(input, key)
-//			input[anonymizeString(key)] = anonymizeFloat64(v)
-//		case string:
-//			delete(input, key)
-//			input[anonymizeString(key)] = anonymizeString(v)
-//		case bool:
-//		case nil:
-//			// ignore it
-//		default:
-//			return fmt.Errorf("Unknown primitive type: %T.  Val: %v for Key: %v", v, val, key)
-//		}
-//
-//
-//	}
-//	return nil
-//}
-
 func anonymizeString(s string) string {
 
 	// calculate raw sha1 hash

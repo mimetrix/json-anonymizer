@@ -80,8 +80,9 @@ func TestAnonymize(t *testing.T) {
 	assert.False(t, hasNestedMapKey, "Should not have this key")
 
 	// but we should have key with sha1 hash of nestedMap
-	nestedMapValAnon, hasNestedMapValAnon := anonymizedMap[anonymizeString("nestedMap")]
-	assert.True(t, hasNestedMapValAnon, "Should have anonymized key")
+	anonKey := anonymizeString("nestedMap")
+	nestedMapValAnon, hasNestedMapValAnon := anonymizedMap[anonKey]
+	assert.True(t, hasNestedMapValAnon, "Should have anonymized key: %v", anonKey)
 
 	nestedMapValAnonAsMap := nestedMapValAnon.(map[string]interface{})
 	_, hasNestedFooKey := nestedMapValAnonAsMap["nestedfoo"]
@@ -93,5 +94,14 @@ func TestAnonymize(t *testing.T) {
 	// we shouldn't have a key with "nestedlistOfMaps"
 	_, hasNestedListOfMapsKey := anonymizedMap["nestedlistOfMaps"]
 	assert.False(t, hasNestedListOfMapsKey, "Should not have this key")
+
+	// Make sure it has fields that should be skipped by anonymizer
+	_, hasId := anonymizedMap["_id"]
+	assert.True(t, hasId, "Should have this key")
+	_, hasRev := anonymizedMap["_rev"]
+	assert.True(t, hasRev, "Should have this key")
+	_, hasDeleted := anonymizedMap["_deleted"]
+	assert.True(t, hasDeleted, "Should have this key")
+
 
 }

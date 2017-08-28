@@ -37,6 +37,12 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 
 	switch v := anonymized.(type) {
 	case map[string]interface{}:
+
+		// Rather than add to the map directly while iterating, which can cause "double-anonymizing" certain
+		// entries due to the iterator visiting the value and *then* visiting the anonymized value,
+		// add any new vals to a separate map.
+		newMapVals := map[string]interface{}{}
+
 		for key, val := range v {
 			log.Printf("key: %v, val: %v", key, val)
 
@@ -53,8 +59,16 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 			if (ja.Config.AnonymizeKeys) {
 				newKey = anonymizeString(key)
 			}
-			v[newKey] = anonymizedVal
+
+			// Add it to newMapvals to avoid double-anonymizing
+			newMapVals[newKey] = anonymizedVal
 		}
+
+		// Add all the values from newMapVals into target
+		for newKey, newVal := range newMapVals {
+			v[newKey] = newVal
+		}
+
 		return v, nil
 	case []interface{}:
 		newSlice := []interface{}{}
@@ -134,8 +148,14 @@ func anonymizeString(s string) string {
 	shaBytes := sha1.Sum([]byte(s))
 
 	// return hex output
-	return fmt.Sprintf("%x", shaBytes)
+	hex := fmt.Sprintf("%x", shaBytes)
 
+	log.Printf("anonymize: %v -> %v", s, hex)
+	if (s == "39824c8d5eea6ceca7681985e6b675ef5dd0981e") {
+		log.Printf("looks like double anon")
+	}
+
+	return hex
 }
 
 func anonymizeFloat64(f float64) float64 {

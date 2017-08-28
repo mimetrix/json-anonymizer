@@ -5,6 +5,7 @@ import (
 	"log"
 	"fmt"
 	"crypto/sha1"
+	"regexp"
 )
 
 type JsonAnonymizer struct {
@@ -12,7 +13,8 @@ type JsonAnonymizer struct {
 }
 
 type JsonAnonymizerConfig struct {
-	SkipFieldsMatchingRegex []string
+	SkipFieldsMatchingRegex []*regexp.Regexp
+	AnonymizeKeys bool
 }
 
 func NewJsonAnonymizer(config JsonAnonymizerConfig) *JsonAnonymizer {
@@ -35,13 +37,45 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 
 	switch v := anonymized.(type) {
 	case map[string]interface{}:
-		log.Printf("%v is a map", v)
-		if err := ja.AnonymizeMap(v); err != nil {
-			return nil, err
+		for key, val := range v {
+			log.Printf("key: %v, val: %v", key, val)
+
+			if ja.ShouldSkip(key) {
+				continue
+			}
+
+			anonymizedVal, err := ja.Anonymize(val)
+			if err != nil {
+				return nil, err
+			}
+			delete(v, key)
+			newKey := key
+			if (ja.Config.AnonymizeKeys) {
+				newKey = anonymizeString(key)
+			}
+			v[newKey] = anonymizedVal
 		}
+		return v, nil
 	case []interface{}:
-		log.Printf("%v is a slice", v)
-		return nil, fmt.Errorf("Top level slices/lists not supported yet")
+		newSlice := []interface{}{}
+		for i, val := range v {
+			log.Printf("array index: %v, val: %v", i, val)
+			anonymizedVal, err := ja.Anonymize(val)
+			if err != nil {
+				return nil, err
+			}
+			newSlice = append(newSlice, anonymizedVal)
+		}
+		return newSlice, nil
+	case float64:
+		log.Printf("float64: %v", v)
+		return anonymizeFloat64(v), nil
+	case string:
+		log.Printf("string: %v", v)
+		return anonymizeString(v), nil
+	case bool:
+	case nil:
+		// ignore it
 	default:
 		return nil, err
 	}
@@ -50,40 +84,49 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 
 }
 
-func (ja JsonAnonymizer) AnonymizeMap(input map[string]interface{}) (err error) {
-
-	for key, val := range input {
-
-		switch v := val.(type) {
-		case map[string]interface{}:
-			delete(input, key)
-			// recursively anonymize map
-			if errAnonymizeMap := ja.AnonymizeMap(v); errAnonymizeMap != nil {
-				return errAnonymizeMap
-			}
-			input[anonymizeString(key)] = v
-		case []interface{}:
-			// return fmt.Errorf("Cannot handle slice/list values")
-			for index, listItem := range v {
-
-			}
-		case float64:
-			delete(input, key)
-			input[anonymizeString(key)] = anonymizeFloat64(v)
-		case string:
-			delete(input, key)
-			input[anonymizeString(key)] = anonymizeString(v)
-		case bool:
-		case nil:
-			// ignore it
-		default:
-			return fmt.Errorf("Unknown primitive type: %T.  Val: %v for Key: %v", v, val, key)
+func (ja JsonAnonymizer) ShouldSkip(key string) bool {
+	for _, skipRegexp := range ja.Config.SkipFieldsMatchingRegex {
+		if skipRegexp.MatchString(key) {
+			return true
 		}
-
-
 	}
-	return nil
+	return false
 }
+
+//func (ja JsonAnonymizer) AnonymizeMap(input map[string]interface{}) (err error) {
+//
+//	for key, val := range input {
+//
+//		switch v := val.(type) {
+//		case map[string]interface{}:
+//			delete(input, key)
+//			// recursively anonymize map
+//			if errAnonymizeMap := ja.AnonymizeMap(v); errAnonymizeMap != nil {
+//				return errAnonymizeMap
+//			}
+//			input[anonymizeString(key)] = v
+//		case []interface{}:
+//			// return fmt.Errorf("Cannot handle slice/list values")
+//			for index, listItem := range v {
+//
+//			}
+//		case float64:
+//			delete(input, key)
+//			input[anonymizeString(key)] = anonymizeFloat64(v)
+//		case string:
+//			delete(input, key)
+//			input[anonymizeString(key)] = anonymizeString(v)
+//		case bool:
+//		case nil:
+//			// ignore it
+//		default:
+//			return fmt.Errorf("Unknown primitive type: %T.  Val: %v for Key: %v", v, val, key)
+//		}
+//
+//
+//	}
+//	return nil
+//}
 
 func anonymizeString(s string) string {
 

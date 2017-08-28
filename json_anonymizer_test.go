@@ -1,40 +1,53 @@
 package json_anonymizer
 
 import (
+	"encoding/json"
 	"testing"
+
 	"log"
+
+	"regexp"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestAnonymize(t *testing.T) {
 
+	// Anything that starts with an underscore
+	regexpStartsUnderscore, err := regexp.Compile("_(.)*")
+	if err != nil {
+		t.Fatalf("Error compiling regex: %v", err)
+	}
+
 	config := JsonAnonymizerConfig{
-		SkipFieldsMatchingRegex: []string{},
+		SkipFieldsMatchingRegex: []*regexp.Regexp{
+			regexpStartsUnderscore,
+		},
+		AnonymizeKeys: true,
 	}
 	jsonAnonymizer := NewJsonAnonymizer(config)
 
-	//nestedMap := map[string]interface{} {
-	//	"nestedfoo": "nestedbar",
-	//}
-
-	testMap := map[string]interface{} {
-		"foo": "bar",
-		"key": 23423.4,
-		"list": []string{ "s1, s2"},
-		"nestedMap": map[string]interface{} {
+	testMap := map[string]interface{}{
+		"_id":      "doc1",
+		"_rev":     "1-3lkj",
+		"_deleted": true,
+		"foo":      "bar",
+		"key":      23423.4,
+		"list":     []string{"s1", "s2"},
+		"nestedMap": map[string]interface{}{
 			"nestedfoo": "nestedbar",
 		},
-		//"nestedlistOfMaps": []map[string]interface{}{
-		//	map[string]interface{} {
-		//		"nestedlistOfMapsMap1": "nestedbar",
-		//	},
-		//	map[string]interface{} {
-		//		"nestedlistOfMapsMap2": "nestedbar",
-		//	},
-		//},
-		//"nestedlistOStrings": []string{
-		//	"s1", "s2",
-		//},
+		"nestedlistOfMaps": []map[string]interface{}{
+			map[string]interface{}{
+				"nestedlistOfMapsMap1": "nestedbar",
+			},
+			map[string]interface{}{
+				"nestedlistOfMapsMap2": "nestedbar",
+			},
+		},
+		"nestedlistOStrings": []string{
+			"s1", "s2",
+		},
 	}
 
 	anonymized, err := jsonAnonymizer.Anonymize(testMap)
@@ -42,11 +55,16 @@ func TestAnonymize(t *testing.T) {
 		t.Fatalf("Error anonymizing: %v", err)
 	}
 
+	anonymizedStr, err := json.MarshalIndent(anonymized, "", "    ")
+	if err != nil {
+		t.Fatalf("Error marshalling: %v", err)
+	}
+	log.Printf("anonymized: %+v", string(anonymizedStr))
+
 	anonymizedMap, ok := anonymized.(map[string]interface{})
 	if !ok {
 		t.Fatalf("Error type asserting")
 	}
-	log.Printf("anonymized: %+v", anonymized)
 
 	// we shouldn't have a key with "foo"
 	_, hasFooKey := anonymizedMap["foo"]
@@ -75,8 +93,5 @@ func TestAnonymize(t *testing.T) {
 	// we shouldn't have a key with "nestedlistOfMaps"
 	_, hasNestedListOfMapsKey := anonymizedMap["nestedlistOfMaps"]
 	assert.False(t, hasNestedListOfMapsKey, "Should not have this key")
-
-
-
 
 }

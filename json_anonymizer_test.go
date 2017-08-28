@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAnonymize(t *testing.T) {
+func TestAnonymizeMap(t *testing.T) {
 
 	// Anything that starts with an underscore
 	regexpStartsUnderscore, err := regexp.Compile("_(.)*")
@@ -103,5 +103,23 @@ func TestAnonymize(t *testing.T) {
 	_, hasDeleted := anonymizedMap["_deleted"]
 	assert.True(t, hasDeleted, "Should have this key")
 
+
+}
+
+func TestAnonymizeNumericValue(t *testing.T) {
+
+	config := JsonAnonymizerConfig{
+		SkipFieldsMatchingRegex: []*regexp.Regexp{},
+		AnonymizeKeys: false,
+	}
+	jsonAnonymizer := NewJsonAnonymizer(config)
+
+	anonymized, err := jsonAnonymizer.Anonymize(100)
+	if err != nil {
+		t.Fatalf("Error: %v", err)
+	}
+
+	anonymized = anonymized.(float64)
+	assert.Equal(t, anonymized, float64(0))
 
 }

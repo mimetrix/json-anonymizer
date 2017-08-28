@@ -1,11 +1,11 @@
 package json_anonymizer
 
 import (
-	"github.com/dustin/gojson"
-	"log"
-	"fmt"
 	"crypto/sha1"
+	"fmt"
 	"regexp"
+
+	"github.com/dustin/gojson"
 )
 
 type JsonAnonymizer struct {
@@ -14,7 +14,7 @@ type JsonAnonymizer struct {
 
 type JsonAnonymizerConfig struct {
 	SkipFieldsMatchingRegex []*regexp.Regexp
-	AnonymizeKeys bool
+	AnonymizeKeys           bool
 }
 
 func NewJsonAnonymizer(config JsonAnonymizerConfig) *JsonAnonymizer {
@@ -44,7 +44,6 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 		newMapVals := map[string]interface{}{}
 
 		for key, val := range v {
-			log.Printf("key: %v, val: %v", key, val)
 
 			if ja.ShouldSkip(key) {
 				continue
@@ -56,7 +55,7 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 			}
 			delete(v, key)
 			newKey := key
-			if (ja.Config.AnonymizeKeys) {
+			if ja.Config.AnonymizeKeys {
 				newKey = anonymizeString(key)
 			}
 
@@ -72,8 +71,7 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 		return v, nil
 	case []interface{}:
 		newSlice := []interface{}{}
-		for i, val := range v {
-			log.Printf("array index: %v, val: %v", i, val)
+		for _, val := range v {
 			anonymizedVal, err := ja.Anonymize(val)
 			if err != nil {
 				return nil, err
@@ -82,10 +80,8 @@ func (ja JsonAnonymizer) Anonymize(input interface{}) (anonymized interface{}, e
 		}
 		return newSlice, nil
 	case float64:
-		log.Printf("float64: %v", v)
 		return anonymizeFloat64(v), nil
 	case string:
-		log.Printf("string: %v", v)
 		return anonymizeString(v), nil
 	case bool:
 	case nil:
@@ -114,11 +110,6 @@ func anonymizeString(s string) string {
 
 	// return hex output
 	hex := fmt.Sprintf("%x", shaBytes)
-
-	log.Printf("anonymize: %v -> %v", s, hex)
-	if (s == "39824c8d5eea6ceca7681985e6b675ef5dd0981e") {
-		log.Printf("looks like double anon")
-	}
 
 	return hex
 }

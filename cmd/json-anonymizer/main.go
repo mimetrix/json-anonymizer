@@ -1,60 +1,68 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log"
 	"os"
-	"regexp"
 
 	"github.com/tleyden/json-anonymizer"
 )
 
 func main() {
 
-	// Anything that starts with an underscore
-	regexpStartsUnderscore, err := regexp.Compile("_(.)*")
-	if err != nil {
-		panic(fmt.Sprintf("failed to compile regex.  Err: %v", err))
-	}
+	// // Anything that starts with an underscore
+	// regexpStartsUnderscore, err := regexp.Compile("_(.)*")
+	// if err != nil {
+	// 	panic(fmt.Sprintf("failed to compile regex.  Err: %v", err))
+	// }
 
 	config := json_anonymizer.JsonAnonymizerConfig{
-		SkipFieldsMatchingRegex: []*regexp.Regexp{
-			regexpStartsUnderscore,
-		},
-		AnonymizeKeys: true,
-	}
-	jsonAnonymizer := json_anonymizer.NewJsonAnonymizer(config)
-
-	filename := os.Args[1]
-
-	file, err := os.Open(filename)
-	if err != nil {
-		panic(fmt.Sprintf("failed to open file.  Err: %v", err))
+	// SkipFieldsMatchingRegex: []*regexp.Regexp{
+	// 	regexpStartsUnderscore,
+	// },
+	// AnonymizeKeys: true,
 	}
 
-	jsonUnmarshalled := map[string]interface{}{}
+	buf := bufio.NewReader(os.Stdin)
+	var line []byte
 
-	fileBytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		panic(fmt.Sprintf("failed to read file.  Err: %v", err))
+	for {
+		raw, isPrefix, err := buf.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				return
+			}
+			log.Fatalln(err)
+		}
+		line = append(line, raw...)
+		if isPrefix {
+			continue
+		}
+
+		jsonAnonymizer := json_anonymizer.NewJsonAnonymizer(config)
+
+		jsonUnmarshalled := map[string]interface{}{}
+
+		if err := json.Unmarshal(line, &jsonUnmarshalled); err != nil {
+			panic(fmt.Sprintf("failed to unmarshal json file.  Err: %v", err))
+		}
+
+		anonymized, err := jsonAnonymizer.Anonymize(jsonUnmarshalled)
+		if err != nil {
+			panic(fmt.Sprintf("failed to anonymize json file.  Err: %v", err))
+
+		}
+
+		anonymizedMarshalled, err := json.Marshal(anonymized)
+		if err != nil {
+			panic(fmt.Sprintf("failed to marshal anonymized json file.  Err: %v", err))
+		}
+
+		fmt.Printf("%v\n", string(anonymizedMarshalled))
+		line = line[:0]
 	}
-
-	if err := json.Unmarshal(fileBytes, &jsonUnmarshalled); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal json file.  Err: %v", err))
-	}
-
-	anonymized, err := jsonAnonymizer.Anonymize(jsonUnmarshalled)
-	if err != nil {
-		panic(fmt.Sprintf("failed to anonymize json file.  Err: %v", err))
-
-	}
-
-	anonymizedMarshalled, err := json.MarshalIndent(anonymized, "", "    ")
-	if err != nil {
-		panic(fmt.Sprintf("failed to marshal anonymized json file.  Err: %v", err))
-	}
-
-	fmt.Printf("%v", string(anonymizedMarshalled))
 
 }
